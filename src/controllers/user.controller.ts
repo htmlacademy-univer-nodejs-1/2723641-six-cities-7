@@ -1,0 +1,101 @@
+import type { Request, Response } from 'express';
+
+import { inject, injectable } from 'inversify';
+
+import { plainToInstance } from 'class-transformer';
+
+import { StatusCodes } from 'http-status-codes';
+
+import type { Logger } from '../shared/logger/logger.interface.js';
+
+import type { UserService } from '../modules/user/user-service.interface.js';
+
+import type { CreateUserDto } from '../modules/user/dto/create-user.dto.js';
+
+import { UserRdo } from '../rdo/user.rdo.js';
+
+import { HttpError } from '../errors/http-error.js';
+
+import { Component } from '../types/component.enum.js';
+
+import { Controller } from './controller.abstract.js';
+import { HttpMethod } from './http-method.enum.js';
+
+@injectable()
+export class UserController extends Controller {
+  constructor(
+    @inject(Component.Logger)
+      logger: Logger,
+
+    @inject(Component.UserService)
+    private readonly userService: UserService,
+  ) {
+    super(logger);
+
+    this.addRoute({
+      path: '/',
+      method: HttpMethod.Post,
+      handler: this.create,
+    });
+
+    this.addRoute({
+      path: '/login',
+      method: HttpMethod.Post,
+      handler: this.login,
+    });
+
+    this.addRoute({
+      path: '/logout',
+      method: HttpMethod.Delete,
+      handler: this.logout,
+    });
+
+    this.addRoute({
+      path: '/status',
+      method: HttpMethod.Get,
+      handler: this.status,
+    });
+  }
+
+  private async create(req: Request, res: Response): Promise<void> {
+    const dto = req.body as CreateUserDto;
+
+    const existingUser = await this.userService.findByEmail(dto.email);
+
+    if (existingUser) {
+      throw new HttpError(
+        StatusCodes.CONFLICT,
+        'Пользователь с таким email уже существует',
+      );
+    }
+
+    const user = await this.userService.create(dto);
+
+    const response = plainToInstance(UserRdo, user.toObject(), {
+      excludeExtraneousValues: true,
+    });
+
+    this.created(res, response);
+  }
+
+  private async login(_req: Request, _res: Response): Promise<void> {
+    throw new HttpError(
+      StatusCodes.NOT_IMPLEMENTED,
+      'Авторизация пока не реализована',
+    );
+  }
+
+  private async logout(_req: Request, _res: Response): Promise<void> {
+    throw new HttpError(
+      StatusCodes.NOT_IMPLEMENTED,
+      'Выход пока не реализован',
+    );
+  }
+
+  private async status(_req: Request, _res: Response): Promise<void> {
+    throw new HttpError(
+      StatusCodes.NOT_IMPLEMENTED,
+      'Проверка авторизации пока не реализована',
+    );
+  }
+}

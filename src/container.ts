@@ -32,6 +32,13 @@ import { PinoLogger } from './shared/logger/pino.logger.js';
 
 import { Component } from './types/component.enum.js';
 
+import { UserController } from './controllers/user.controller.js';
+import { OfferController } from './controllers/offer.controller.js';
+
+import type { ExceptionFilter } from './exception-filter/exception-filter.interface.js';
+
+import { AppExceptionFilter } from './exception-filter/exception.filter.js';
+
 export const container = new Container();
 
 container
@@ -73,6 +80,21 @@ container
 container
   .bind<CommentService>(Component.CommentService)
   .to(DefaultCommentService)
+  .inSingletonScope();
+
+container
+  .bind<UserController>(Component.UserController)
+  .to(UserController)
+  .inSingletonScope();
+
+container
+  .bind<OfferController>(Component.OfferController)
+  .to(OfferController)
+  .inSingletonScope();
+
+container
+  .bind<ExceptionFilter>(Component.ExceptionFilter)
+  .to(AppExceptionFilter)
   .inSingletonScope();
 
 container.bind<ImportCommand>(Component.ImportCommand).to(ImportCommand);
