@@ -82,7 +82,7 @@ export class ImportCommand implements Command {
 
         await this.offerService.create({
           ...offerData,
-          author: user._id,
+          author: user._id.toString(),
         });
 
         importedCount++;

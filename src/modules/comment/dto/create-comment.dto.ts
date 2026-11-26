@@ -1,9 +1,15 @@
-import type { Types } from 'mongoose';
+import { IsInt, IsMongoId, IsString, Length, Max, Min } from 'class-validator';
 
-export type CreateCommentDto = {
-  text: string;
-  rating: number;
+export class CreateCommentDto {
+  @IsString()
+  @Length(5, 1024)
+  public text!: string;
 
-  author: Types.ObjectId;
-  offerId: Types.ObjectId;
-};
+  @IsInt()
+  @Min(1)
+  @Max(5)
+  public rating!: number;
+
+  @IsMongoId()
+  public author!: string;
+}
