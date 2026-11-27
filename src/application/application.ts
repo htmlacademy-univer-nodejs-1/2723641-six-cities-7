@@ -14,6 +14,10 @@ import { UserController } from '../controllers/user.controller.js';
 
 import type { ExceptionFilter } from '../exception-filter/exception-filter.interface.js';
 
+import { CommentController } from '../controllers/comment.controller.js';
+
+import type { DatabaseClient } from '../shared/database/database-client.interface.js';
+
 @injectable()
 export class Application {
   private readonly server: Express;
@@ -33,12 +37,26 @@ export class Application {
 
     @inject(Component.ExceptionFilter)
     private readonly exceptionFilter: ExceptionFilter,
+
+    @inject(Component.CommentController)
+    private readonly commentController: CommentController,
+
+    @inject(Component.DatabaseClient)
+    private readonly databaseClient: DatabaseClient,
   ) {
     this.server = express();
   }
 
-  public init(): void {
+  public async init(): Promise<void> {
     this.logger.info('Приложение инициализировано');
+
+    const databaseUri = process.env.DB_URI;
+
+    if (!databaseUri) {
+      throw new Error('Не указана переменная DB_URI');
+    }
+
+    await this.databaseClient.connect(databaseUri);
 
     this.registerMiddleware();
     this.registerRoutes();
@@ -59,6 +77,8 @@ export class Application {
     this.server.use('/users', this.userController.router);
 
     this.server.use('/offers', this.offerController.router);
+
+    this.server.use('/offers', this.commentController.router);
   }
 
   private registerExceptionFilters(): void {

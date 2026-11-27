@@ -10,8 +10,6 @@ import type { Logger } from '../shared/logger/logger.interface.js';
 
 import type { UserService } from '../modules/user/user-service.interface.js';
 
-import type { CreateUserDto } from '../modules/user/dto/create-user.dto.js';
-
 import { UserRdo } from '../rdo/user.rdo.js';
 
 import { HttpError } from '../errors/http-error.js';
@@ -20,6 +18,11 @@ import { Component } from '../types/component.enum.js';
 
 import { Controller } from './controller.abstract.js';
 import { HttpMethod } from './http-method.enum.js';
+
+import { CreateUserDto } from '../modules/user/dto/create-user.dto.js';
+import { ValidateDtoMiddleware } from '../middleware/validate-dto.middleware.js';
+
+import { LoginUserDto } from '../modules/user/dto/login-user.dto.js';
 
 @injectable()
 export class UserController extends Controller {
@@ -36,12 +39,14 @@ export class UserController extends Controller {
       path: '/',
       method: HttpMethod.Post,
       handler: this.create,
+      middlewares: [new ValidateDtoMiddleware(CreateUserDto)],
     });
 
     this.addRoute({
       path: '/login',
       method: HttpMethod.Post,
       handler: this.login,
+      middlewares: [new ValidateDtoMiddleware(LoginUserDto)],
     });
 
     this.addRoute({

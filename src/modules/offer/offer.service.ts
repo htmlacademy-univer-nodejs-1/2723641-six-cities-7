@@ -12,6 +12,8 @@ import type { UpdateOfferDto } from './dto/update-offer.dto.js';
 import type { OfferEntity } from './offer.entity.js';
 import type { OfferService } from './offer-service.interface.js';
 
+import { Types } from 'mongoose';
+
 const DEFAULT_OFFER_COUNT = 60;
 const PREMIUM_OFFER_COUNT = 3;
 
@@ -46,6 +48,7 @@ export class DefaultOfferService implements OfferService {
   ): Promise<HydratedDocument<OfferEntity>> {
     return this.offerModel.create({
       ...dto,
+      author: new Types.ObjectId(dto.author),
       rating: 0,
       commentCount: 0,
     });

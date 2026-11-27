@@ -10,10 +10,6 @@ import type { Logger } from '../shared/logger/logger.interface.js';
 
 import type { OfferService } from '../modules/offer/offer-service.interface.js';
 
-import type { CreateOfferDto } from '../modules/offer/dto/create-offer.dto.js';
-
-import type { UpdateOfferDto } from '../modules/offer/dto/update-offer.dto.js';
-
 import type { CityName } from '../types/city.type.js';
 
 import { OfferRdo } from '../rdo/offer.rdo.js';
@@ -24,6 +20,14 @@ import { Component } from '../types/component.enum.js';
 
 import { Controller } from './controller.abstract.js';
 import { HttpMethod } from './http-method.enum.js';
+
+import { CreateOfferDto } from '../modules/offer/dto/create-offer.dto.js';
+import { UpdateOfferDto } from '../modules/offer/dto/update-offer.dto.js';
+
+import { ValidateDtoMiddleware } from '../middleware/validate-dto.middleware.js';
+import { ValidateObjectIdMiddleware } from '../middleware/validate-objectid.middleware.js';
+
+import { CITY_NAMES } from '../modules/offer/dto/city.dto.js';
 
 @injectable()
 export class OfferController extends Controller {
@@ -46,6 +50,7 @@ export class OfferController extends Controller {
       path: '/',
       method: HttpMethod.Post,
       handler: this.create,
+      middlewares: [new ValidateDtoMiddleware(CreateOfferDto)],
     });
 
     this.addRoute({
@@ -64,29 +69,55 @@ export class OfferController extends Controller {
       path: '/:offerId',
       method: HttpMethod.Get,
       handler: this.show,
+      middlewares: [new ValidateObjectIdMiddleware('offerId')],
     });
 
     this.addRoute({
       path: '/:offerId',
       method: HttpMethod.Put,
       handler: this.update,
+      middlewares: [
+        new ValidateObjectIdMiddleware('offerId'),
+        new ValidateDtoMiddleware(UpdateOfferDto),
+      ],
     });
 
     this.addRoute({
       path: '/:offerId',
       method: HttpMethod.Delete,
       handler: this.delete,
+      middlewares: [new ValidateObjectIdMiddleware('offerId')],
     });
 
     this.addRoute({
       path: '/:offerId/favorite/:status',
       method: HttpMethod.Post,
       handler: this.setFavorite,
+      middlewares: [new ValidateObjectIdMiddleware('offerId')],
     });
   }
 
   private async index(req: Request, res: Response): Promise<void> {
-    const limit = req.query.limit ? Number(req.query.limit) : undefined;
+    const rawLimit = req.query.limit;
+    let limit: number | undefined;
+
+    if (rawLimit !== undefined) {
+      if (typeof rawLimit !== 'string') {
+        throw new HttpError(
+          StatusCodes.BAD_REQUEST,
+          'Некорректный параметр limit',
+        );
+      }
+
+      limit = Number(rawLimit);
+
+      if (!Number.isInteger(limit) || limit < 1 || limit > 60) {
+        throw new HttpError(
+          StatusCodes.BAD_REQUEST,
+          'Параметр limit должен быть целым числом от 1 до 60',
+        );
+      }
+    }
 
     const offers = await this.offerService.find(limit);
 
@@ -158,9 +189,16 @@ export class OfferController extends Controller {
   }
 
   private async premium(req: Request, res: Response): Promise<void> {
-    const offers = await this.offerService.findPremium(
-      req.params.city as CityName,
-    );
+    const city = req.params.city;
+
+    if (!CITY_NAMES.some((name) => name === city)) {
+      throw new HttpError(
+        StatusCodes.BAD_REQUEST,
+        'Некорректное название города',
+      );
+    }
+
+    const offers = await this.offerService.findPremium(city as CityName);
 
     this.ok(
       res,
@@ -190,7 +228,16 @@ export class OfferController extends Controller {
   }
 
   private async setFavorite(req: Request, res: Response): Promise<void> {
-    const isFavorite = req.params.status === '1';
+    const status = req.params.status;
+
+    if (status !== '0' && status !== '1') {
+      throw new HttpError(
+        StatusCodes.BAD_REQUEST,
+        'Статус избранного должен быть 0 или 1',
+      );
+    }
+
+    const isFavorite = status === '1';
 
     const offer = await this.offerService.setFavorite(
       req.params.offerId,

@@ -39,6 +39,8 @@ import type { ExceptionFilter } from './exception-filter/exception-filter.interf
 
 import { AppExceptionFilter } from './exception-filter/exception.filter.js';
 
+import { CommentController } from './controllers/comment.controller.js';
+
 export const container = new Container();
 
 container
@@ -98,3 +100,8 @@ container
   .inSingletonScope();
 
 container.bind<ImportCommand>(Component.ImportCommand).to(ImportCommand);
+
+container
+  .bind<CommentController>(Component.CommentController)
+  .to(CommentController)
+  .inSingletonScope();

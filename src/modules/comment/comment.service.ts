@@ -1,15 +1,17 @@
 import { inject, injectable } from 'inversify';
 
-import type { HydratedDocument, Model } from 'mongoose';
 import { Types } from 'mongoose';
+import type { HydratedDocument, Model } from 'mongoose';
 
 import { Component } from '../../types/component.enum.js';
-
 import type { OfferEntity } from '../offer/offer.entity.js';
 
 import type { CommentEntity } from './comment.entity.js';
-import type { CommentService } from './comment-service.interface.js';
-import type { CreateCommentDto } from './dto/create-comment.dto.js';
+
+import type {
+  CommentService,
+  CreateCommentData,
+} from './comment-service.interface.js';
 
 type RatingResult = {
   _id: null;
@@ -34,18 +36,24 @@ export class DefaultCommentService implements CommentService {
       .find({ offerId })
       .sort({ publicationDate: -1 })
       .limit(50)
+      .populate('author')
       .exec();
   }
 
   public async create(
-    dto: CreateCommentDto,
+    dto: CreateCommentData,
   ): Promise<HydratedDocument<CommentEntity>> {
     const comment = await this.commentModel.create({
-      ...dto,
+      text: dto.text,
+      rating: dto.rating,
+      author: new Types.ObjectId(dto.author),
+      offerId: new Types.ObjectId(dto.offerId),
       publicationDate: new Date(),
     });
 
-    await this.recalculateOffer(dto.offerId.toString());
+    await this.recalculateOffer(dto.offerId);
+
+    await comment.populate('author');
 
     return comment;
   }
@@ -64,31 +72,16 @@ export class DefaultCommentService implements CommentService {
       {
         $group: {
           _id: null,
-          commentCount: {
-            $sum: 1,
-          },
-          rating: {
-            $avg: '$rating',
-          },
+          commentCount: { $sum: 1 },
+          rating: { $avg: '$rating' },
         },
       },
     ]);
 
-    if (!result) {
-      await this.offerModel
-        .findByIdAndUpdate(offerId, {
-          commentCount: 0,
-          rating: 0,
-        })
-        .exec();
-
-      return;
-    }
-
     await this.offerModel
       .findByIdAndUpdate(offerId, {
-        commentCount: result.commentCount,
-        rating: Number(result.rating.toFixed(1)),
+        commentCount: result?.commentCount ?? 0,
+        rating: result ? Number(result.rating.toFixed(1)) : 0,
       })
       .exec();
   }
