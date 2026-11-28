@@ -32,4 +32,20 @@ export class DefaultUserService implements UserService {
   ): Promise<HydratedDocument<UserEntity>> {
     return this.userModel.create(dto);
   }
+
+  public async updateAvatar(
+    id: string,
+    avatar: string,
+  ): Promise<HydratedDocument<UserEntity> | null> {
+    return this.userModel
+      .findByIdAndUpdate(
+        id,
+        { avatar },
+        {
+          new: true,
+          runValidators: true,
+        },
+      )
+      .exec();
+  }
 }

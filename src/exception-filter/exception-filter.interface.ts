@@ -1,5 +1,10 @@
 import type { NextFunction, Request, Response } from 'express';
 
 export interface ExceptionFilter {
-  catch(error: Error, req: Request, res: Response, next: NextFunction): void;
+  catch(
+    error: Error,
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void>;
 }

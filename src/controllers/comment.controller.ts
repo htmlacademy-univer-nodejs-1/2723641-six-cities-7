@@ -1,7 +1,6 @@
 import type { Request, Response } from 'express';
 
 import { plainToInstance } from 'class-transformer';
-import { StatusCodes } from 'http-status-codes';
 import { inject, injectable } from 'inversify';
 
 import type { Logger } from '../shared/logger/logger.interface.js';
@@ -12,7 +11,6 @@ import type { OfferService } from '../modules/offer/offer-service.interface.js';
 
 import { CreateCommentDto } from '../modules/comment/dto/create-comment.dto.js';
 
-import { HttpError } from '../errors/http-error.js';
 import { ValidateDtoMiddleware } from '../middleware/validate-dto.middleware.js';
 import { ValidateObjectIdMiddleware } from '../middleware/validate-objectid.middleware.js';
 
@@ -21,6 +19,8 @@ import { Component } from '../types/component.enum.js';
 
 import { Controller } from './controller.abstract.js';
 import { HttpMethod } from './http-method.enum.js';
+
+import { CheckDocumentExistsMiddleware } from '../middleware/check-document-exists.middleware.js';
 
 @injectable()
 export class CommentController extends Controller {
@@ -43,7 +43,14 @@ export class CommentController extends Controller {
       path: '/:offerId/comments',
       method: HttpMethod.Get,
       handler: this.index,
-      middlewares: [new ValidateObjectIdMiddleware('offerId')],
+      middlewares: [
+        new ValidateObjectIdMiddleware('offerId'),
+        new CheckDocumentExistsMiddleware(
+          this.offerService,
+          (req) => req.params.offerId,
+          'Предложение не найдено',
+        ),
+      ],
     });
 
     this.addRoute({
@@ -53,17 +60,23 @@ export class CommentController extends Controller {
       middlewares: [
         new ValidateObjectIdMiddleware('offerId'),
         new ValidateDtoMiddleware(CreateCommentDto),
+        new CheckDocumentExistsMiddleware(
+          this.offerService,
+          (req) => req.params.offerId,
+          'Предложение не найдено',
+          'offer',
+        ),
+        new CheckDocumentExistsMiddleware(
+          this.userService,
+          (req) => (req.body as CreateCommentDto).author,
+          'Пользователь не найден',
+          'author',
+        ),
       ],
     });
   }
 
   private async index(req: Request, res: Response): Promise<void> {
-    const offer = await this.offerService.findById(req.params.offerId);
-
-    if (!offer) {
-      throw new HttpError(StatusCodes.NOT_FOUND, 'Предложение не найдено');
-    }
-
     const comments = await this.commentService.findByOfferId(
       req.params.offerId,
     );
@@ -80,18 +93,6 @@ export class CommentController extends Controller {
   private async create(req: Request, res: Response): Promise<void> {
     const dto = req.body as CreateCommentDto;
     const offerId = req.params.offerId;
-
-    const offer = await this.offerService.findById(offerId);
-
-    if (!offer) {
-      throw new HttpError(StatusCodes.NOT_FOUND, 'Предложение не найдено');
-    }
-
-    const author = await this.userService.findById(dto.author);
-
-    if (!author) {
-      throw new HttpError(StatusCodes.NOT_FOUND, 'Пользователь не найден');
-    }
 
     const comment = await this.commentService.create({
       ...dto,

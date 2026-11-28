@@ -326,6 +326,48 @@ paths:
         "401":
           $ref: "#/components/responses/Unauthorized"
 
+  /users/{userId}/avatar:
+    post:
+      tags:
+        - Users
+      summary: Загрузить аватар пользователя
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - avatar
+              properties:
+                avatar:
+                  type: string
+                  format: binary
+            encoding:
+              avatar:
+                contentType: image/jpeg, image/png
+      responses:
+        "200":
+          description: Пользователь с обновлённым аватаром
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "413":
+          description: Размер файла превышает 2 МиБ
+        "415":
+          description: Допускаются только JPG и PNG
+
 components:
   securitySchemes:
     bearerAuth:

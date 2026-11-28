@@ -29,6 +29,13 @@ import { ValidateObjectIdMiddleware } from '../middleware/validate-objectid.midd
 
 import { CITY_NAMES } from '../modules/offer/dto/city.dto.js';
 
+import type { HydratedDocument } from 'mongoose';
+
+import type { UserService } from '../modules/user/user-service.interface.js';
+import type { OfferEntity } from '../modules/offer/offer.entity.js';
+
+import { CheckDocumentExistsMiddleware } from '../middleware/check-document-exists.middleware.js';
+
 @injectable()
 export class OfferController extends Controller {
   constructor(
@@ -37,8 +44,24 @@ export class OfferController extends Controller {
 
     @inject(Component.OfferService)
     private readonly offerService: OfferService,
+    @inject(Component.UserService)
+    private readonly userService: UserService,
   ) {
     super(logger);
+
+    const checkOfferExists = new CheckDocumentExistsMiddleware(
+      this.offerService,
+      (req) => req.params.offerId,
+      'Предложение не найдено',
+      'offer',
+    );
+
+    const checkAuthorExists = new CheckDocumentExistsMiddleware(
+      this.userService,
+      (req) => (req.body as CreateOfferDto).author,
+      'Пользователь не найден',
+      'author',
+    );
 
     this.addRoute({
       path: '/',
@@ -50,7 +73,10 @@ export class OfferController extends Controller {
       path: '/',
       method: HttpMethod.Post,
       handler: this.create,
-      middlewares: [new ValidateDtoMiddleware(CreateOfferDto)],
+      middlewares: [
+        new ValidateDtoMiddleware(CreateOfferDto),
+        checkAuthorExists,
+      ],
     });
 
     this.addRoute({
@@ -69,7 +95,10 @@ export class OfferController extends Controller {
       path: '/:offerId',
       method: HttpMethod.Get,
       handler: this.show,
-      middlewares: [new ValidateObjectIdMiddleware('offerId')],
+      middlewares: [
+        new ValidateObjectIdMiddleware('offerId'),
+        checkOfferExists,
+      ],
     });
 
     this.addRoute({
@@ -79,6 +108,7 @@ export class OfferController extends Controller {
       middlewares: [
         new ValidateObjectIdMiddleware('offerId'),
         new ValidateDtoMiddleware(UpdateOfferDto),
+        checkOfferExists,
       ],
     });
 
@@ -86,14 +116,20 @@ export class OfferController extends Controller {
       path: '/:offerId',
       method: HttpMethod.Delete,
       handler: this.delete,
-      middlewares: [new ValidateObjectIdMiddleware('offerId')],
+      middlewares: [
+        new ValidateObjectIdMiddleware('offerId'),
+        checkOfferExists,
+      ],
     });
 
     this.addRoute({
       path: '/:offerId/favorite/:status',
       method: HttpMethod.Post,
       handler: this.setFavorite,
-      middlewares: [new ValidateObjectIdMiddleware('offerId')],
+      middlewares: [
+        new ValidateObjectIdMiddleware('offerId'),
+        checkOfferExists,
+      ],
     });
   }
 
@@ -132,12 +168,8 @@ export class OfferController extends Controller {
     this.ok(res, response);
   }
 
-  private async show(req: Request, res: Response): Promise<void> {
-    const offer = await this.offerService.findById(req.params.offerId);
-
-    if (!offer) {
-      throw new HttpError(StatusCodes.NOT_FOUND, 'Предложение не найдено');
-    }
+  private async show(_req: Request, res: Response): Promise<void> {
+    const offer = res.locals.offer as HydratedDocument<OfferEntity>;
 
     this.ok(
       res,

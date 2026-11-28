@@ -12,3 +12,7 @@ coverage
 /tmp/
 
 .env
+
+/upload/
+
+requests.http

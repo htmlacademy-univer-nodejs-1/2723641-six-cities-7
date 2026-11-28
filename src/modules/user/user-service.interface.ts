@@ -9,4 +9,9 @@ export interface UserService {
   findByEmail(email: string): Promise<HydratedDocument<UserEntity> | null>;
 
   create(dto: CreateUserDto): Promise<HydratedDocument<UserEntity>>;
+
+  updateAvatar(
+    id: string,
+    avatar: string,
+  ): Promise<HydratedDocument<UserEntity> | null>;
 }

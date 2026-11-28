@@ -24,6 +24,12 @@ import { ValidateDtoMiddleware } from '../middleware/validate-dto.middleware.js'
 
 import { LoginUserDto } from '../modules/user/dto/login-user.dto.js';
 
+import type { Config } from '../shared/config/config.interface.js';
+
+import { ValidateObjectIdMiddleware } from '../middleware/validate-objectid.middleware.js';
+import { CheckDocumentExistsMiddleware } from '../middleware/check-document-exists.middleware.js';
+import { UploadFileMiddleware } from '../middleware/upload-file.middleware.js';
+
 @injectable()
 export class UserController extends Controller {
   constructor(
@@ -32,6 +38,9 @@ export class UserController extends Controller {
 
     @inject(Component.UserService)
     private readonly userService: UserService,
+
+    @inject(Component.Config)
+    private readonly config: Config,
   ) {
     super(logger);
 
@@ -59,6 +68,22 @@ export class UserController extends Controller {
       path: '/status',
       method: HttpMethod.Get,
       handler: this.status,
+    });
+
+    this.addRoute({
+      path: '/:userId/avatar',
+      method: HttpMethod.Post,
+      handler: this.uploadAvatar,
+      middlewares: [
+        new ValidateObjectIdMiddleware('userId'),
+        new UploadFileMiddleware(this.config.get('uploadDirectory'), 'avatar'),
+        new CheckDocumentExistsMiddleware(
+          this.userService,
+          (req) => req.params.userId,
+          'Пользователь не найден',
+          'user',
+        ),
+      ],
     });
   }
 
@@ -102,5 +127,32 @@ export class UserController extends Controller {
       StatusCodes.NOT_IMPLEMENTED,
       'Проверка авторизации пока не реализована',
     );
+  }
+
+  private async uploadAvatar(req: Request, res: Response): Promise<void> {
+    const file = req.file;
+
+    if (!file) {
+      throw new HttpError(
+        StatusCodes.BAD_REQUEST,
+        'Необходимо передать файл аватара',
+      );
+    }
+
+    const avatar = `/static/${file.filename}`;
+
+    const user = await this.userService.updateAvatar(req.params.userId, avatar);
+
+    if (!user) {
+      throw new HttpError(StatusCodes.NOT_FOUND, 'Пользователь не найден');
+    }
+
+    res.locals.uploadCommitted = true;
+
+    const response = plainToInstance(UserRdo, user.toObject(), {
+      excludeExtraneousValues: true,
+    });
+
+    this.ok(res, response);
   }
 }
