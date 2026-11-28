@@ -1,12 +1,9 @@
-import {injectable} from 'inversify';
+import { injectable } from 'inversify';
 import convict from 'convict';
 import convictFormatWithValidator from 'convict-format-with-validator';
 import dotenv from 'dotenv';
 
-import type {
-  AppConfig,
-  Config
-} from './config.interface.js';
+import type { AppConfig, Config } from './config.interface.js';
 
 @injectable()
 export class ConfigService implements Config {
@@ -24,47 +21,46 @@ export class ConfigService implements Config {
         doc: 'Порт приложения',
         format: 'port',
         default: 4000,
-        env: 'PORT'
+        env: 'PORT',
       },
 
       dbHost: {
         doc: 'IP-адрес сервера базы данных',
         format: 'ipaddress',
         default: '127.0.0.1',
-        env: 'DB_HOST'
+        env: 'DB_HOST',
       },
 
       salt: {
         doc: 'Соль для хеширования',
         format: String,
         default: '',
-        env: 'SALT'
-      }
+        env: 'SALT',
+      },
+
+      uploadDirectory: {
+        doc: 'Директория пользовательских файлов',
+        format: String,
+        default: 'upload',
+        env: 'UPLOAD_DIRECTORY',
+      },
     });
 
     this.config.validate({
-      allowed: 'strict'
+      allowed: 'strict',
     });
   }
 
-  public get<K extends keyof AppConfig>(
-    key: K
-  ): AppConfig[K] {
+  public get<K extends keyof AppConfig>(key: K): AppConfig[K] {
     return this.config.get(key) as AppConfig[K];
   }
 
   private checkRequiredEnvironmentVariables(): void {
-    const requiredVariables = [
-      'PORT',
-      'DB_HOST',
-      'SALT'
-    ];
+    const requiredVariables = ['PORT', 'DB_HOST', 'SALT', 'UPLOAD_DIRECTORY'];
 
     for (const variable of requiredVariables) {
       if (!process.env[variable]) {
-        throw new Error(
-          `Переменная окружения ${variable} не задана`
-        );
+        throw new Error(`Переменная окружения ${variable} не задана`);
       }
     }
   }

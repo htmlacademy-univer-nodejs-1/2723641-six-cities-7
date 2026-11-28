@@ -1,7 +1,5 @@
 import express from 'express';
 
-import type { Express } from 'express';
-
 import { inject, injectable } from 'inversify';
 
 import type { Config } from '../shared/config/config.interface.js';
@@ -17,6 +15,10 @@ import type { ExceptionFilter } from '../exception-filter/exception-filter.inter
 import { CommentController } from '../controllers/comment.controller.js';
 
 import type { DatabaseClient } from '../shared/database/database-client.interface.js';
+
+import { resolve } from 'node:path';
+
+import type { ErrorRequestHandler, Express } from 'express';
 
 @injectable()
 export class Application {
@@ -71,6 +73,10 @@ export class Application {
 
   private registerMiddleware(): void {
     this.server.use(express.json());
+
+    const uploadDirectory = resolve(this.config.get('uploadDirectory'));
+
+    this.server.use('/static', express.static(uploadDirectory));
   }
 
   private registerRoutes(): void {
@@ -82,6 +88,10 @@ export class Application {
   }
 
   private registerExceptionFilters(): void {
-    this.server.use(this.exceptionFilter.catch.bind(this.exceptionFilter));
+    const handler: ErrorRequestHandler = (error: Error, req, res, next) => {
+      this.exceptionFilter.catch(error, req, res, next).catch(next);
+    };
+
+    this.server.use(handler);
   }
 }
